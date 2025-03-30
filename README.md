@@ -15,9 +15,9 @@ The message may also be cancelled any time before the timeout expires.
 
 ## Supported Commands
 
--. `PUSH <value> <args>`: Pushes a string `value` into `TimerMQ` with default delay of `0ms`. This method will return the message id `id` of the the pushed message
--. `GET <id>`: Retrives a message with `id`. Returns an empty value if it does not exist.
--. `CANCEL <id>`: Cancels the message with id `id` if it is scheduled to be published and has not expired yet.
+- `PUSH <value> <args>`: Pushes a string `value` into `TimerMQ` with default delay of `0ms`. This method will return the message id `id` of the the pushed message
+- `GET <id>`: Retrives a message with `id`. Returns an empty value if it does not exist.
+- `CANCEL <id>`: Cancels the message with id `id` if it is scheduled to be published and has not expired yet.
 
 ### Optional Args
 
