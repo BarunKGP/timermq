@@ -52,7 +52,7 @@ func (t *TCPServer) Close() error {
 }
 
 func formatAddr(addr string, port uint16) string {
-	return fmt.Sprintf("%s:%s", addr, port)
+	return fmt.Sprintf("%s:%d", addr, port)
 }
 
 func (s *TCPServer) GetFullAddress() string {
@@ -89,6 +89,14 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			s.idMap[msg.GetId()] = id
 
 			slog.Info("Published message", "messageId", msg.GetId(), "timermqId", id, "delayMs", msg.GetDelay().Milliseconds())
+		case values.Ping:
+			res := s.tmq.Ping()
+			if res == "pong" {
+				slog.Info("Ping returned: " + res)
+			} else {
+				slog.Info("Ping failed")
+				slog.Warn("TimerMQ ping failed", "res", res)
+			}
 		default:
 			slog.Error("Unrecognized command type", "cmd", msg.CommandType())
 		}

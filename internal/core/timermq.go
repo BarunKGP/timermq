@@ -41,6 +41,10 @@ func (tmq *TimerMQ) IsArchived(index MessageIndex) bool {
 	return exists
 }
 
+func (tmq *TimerMQ) Ping() string {
+	return "pong"
+}
+
 func (tmq *TimerMQ) Archive(index MessageIndex) error {
 	tmq.mu.Lock()
 	defer tmq.mu.Unlock()

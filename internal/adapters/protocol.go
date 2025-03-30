@@ -27,10 +27,6 @@ func TCPProtocol() Protocol {
 
 func handlePush(tokens []string) (*entities.Message,
 	error) {
-	if len(tokens) < 2 {
-		return &entities.Message{}, ErrInvalidCommand
-	}
-
 	msg, err := entities.NewMessageFromTokens(tokens).WithPush()
 	if err != nil {
 		return &entities.Message{}, ErrInvalidCommand
@@ -70,6 +66,15 @@ func handlePush(tokens []string) (*entities.Message,
 	return msg, nil
 }
 
+func handlePing(tokens []string) (*entities.Message, error) {
+	msg, err := entities.NewMessageFromTokens(tokens).WithPing()
+	if err != nil {
+		return &entities.Message{}, ErrInvalidCommand
+	}
+
+	return msg, nil
+}
+
 func (p *Protocol) Handle(msg string) (*entities.Message, error) {
 	words := strings.Split(msg, string(' '))
 	cmd, err := values.ParseValidateCommand(words)
@@ -78,6 +83,8 @@ func (p *Protocol) Handle(msg string) (*entities.Message, error) {
 	}
 
 	switch cmd {
+	case "PING":
+		return handlePing(words)
 	case "PUSH":
 		return handlePush(words)
 	default:

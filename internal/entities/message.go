@@ -42,6 +42,11 @@ func (m *Message) WithPush() (*Message, error) {
 	return m, nil
 }
 
+func (m *Message) WithPing() (*Message, error) {
+	m.cmd = values.Ping
+	return m, nil
+}
+
 func (m *Message) WithGet() (*Message, error) {
 	m.cmd = values.Get
 	return m, nil
