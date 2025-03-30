@@ -48,6 +48,7 @@ func (t *TCPServer) Close() error {
 		return fmt.Errorf("Server is already closed!")
 	}
 	t.closed = true
+	t.tmq.Close()
 	return nil
 }
 

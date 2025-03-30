@@ -34,6 +34,11 @@ func Len(tmq *TimerMQ) int {
 	return tmq.store.Len()
 }
 
+func (t *TimerMQ) Close() {
+	fmt.Println("Closing TimerMQ")
+	close(t.mCh)
+}
+
 func (tmq *TimerMQ) IsArchived(index MessageIndex) bool {
 	tmq.mu.Lock()
 	defer tmq.mu.Unlock()
@@ -80,8 +85,9 @@ func (tmq *TimerMQ) Publish(data []byte, delay time.Duration) MessageIndex {
 		tmq.mu.Lock()
 		delete(tmq.timers, newIndex)
 		tmq.mu.Unlock()
+		fmt.Printf("[%s] Pushing %s to mCh\n", time.Now(), data)
 		tmq.mCh <- data
-		close(tmq.mCh)
+		// close(tmq.mCh)
 	})
 
 	tmq.AddTimer(newIndex, timer)
@@ -90,10 +96,11 @@ func (tmq *TimerMQ) Publish(data []byte, delay time.Duration) MessageIndex {
 
 func (tmq *TimerMQ) Listen() [][]byte {
 	res := [][]byte{}
-	select {
-	case data := <-tmq.mCh:
+	for data := range tmq.mCh {
 		res = append(res, data)
+		fmt.Printf("[%s] Reading %s from mCh\n", time.Now(), data)
 	}
+	fmt.Printf("Wrote output: %s", res)
 	return res
 }
 

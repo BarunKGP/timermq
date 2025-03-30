@@ -67,6 +67,9 @@ func handlePush(tokens []string) (*entities.Message,
 }
 
 func handlePing(tokens []string) (*entities.Message, error) {
+	if len(tokens) > 1 {
+		return &entities.Message{}, ErrInvalidCommand
+	}
 	msg, err := entities.NewMessageFromTokens(tokens).WithPing()
 	if err != nil {
 		return &entities.Message{}, ErrInvalidCommand

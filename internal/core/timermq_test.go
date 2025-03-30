@@ -37,22 +37,33 @@ func TestPublish(t *testing.T) {
 	t.Log("TimerMQ: Testing publish and listen")
 	tmq := NewTimerMQ(2)
 	msg1, msg2 := []byte("test message 1"), []byte("test message 2")
-	_ = tmq.Publish(msg1, time.Second)
-	_ = tmq.Publish(msg2, 0)
 
-	// time.Sleep(time.Second)
+	// var rcv [][]byte
+	go func() {
+		id1 := tmq.Publish(msg1, time.Second)
+		t.Logf("Published message with id: %d", id1)
+
+		id2 := tmq.Publish(msg2, 0)
+		t.Logf("Published message with id: %d", id2)
+
+	}()
+
+	// Wait for all messages to be sent
+	time.Sleep(time.Second + 500*time.Millisecond)
+	tmq.Close()
+
 	rcv := tmq.Listen()
-
+	// t.Logf("Received: %X", rcv)
 	if len(rcv) != 2 {
-		t.Errorf("Unexpected number of items returned: %d", len(rcv))
+		t.Errorf("Unexpected number of items returned: %d -> %s", len(rcv), rcv)
 	}
 
 	if exists := contains(rcv, msg1); !exists {
-		t.Errorf("msg: %X missing in received slice", msg1)
+		t.Errorf("msg: %s missing in received slice", msg1)
 	}
 
 	if exists := contains(rcv, msg2); !exists {
-		t.Errorf("msg: %X missing in received slice", msg2)
+		t.Errorf("msg: %s missing in received slice", msg2)
 	}
 
 	t.Logf("Currently running %d goroutines", runtime.NumGoroutine())
