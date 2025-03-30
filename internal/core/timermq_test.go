@@ -2,6 +2,8 @@ package core
 
 import (
 	"bytes"
+	"log/slog"
+	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -67,4 +69,51 @@ func TestPublish(t *testing.T) {
 	}
 
 	t.Logf("Currently running %d goroutines", runtime.NumGoroutine())
+}
+
+func TestCancel(t *testing.T) {
+	l := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(l)
+
+	t.Log("TimerMQ: Testing CancelSend for messages")
+	tmq := NewTimerMQ(3)
+	msgs := map[time.Duration][]byte{
+		5 * time.Second:        []byte("msg 1: 5s delay"),
+		200 * time.Millisecond: []byte("msg 2: 200ms delay"),
+		10 * time.Millisecond:  []byte("msg 3: 10ms delay"),
+	}
+
+	ids := []MessageIndex{}
+	go func() {
+		for d, m := range msgs {
+			ids = append(ids, tmq.Publish(m, d))
+		}
+
+	}()
+	time.Sleep(1 * time.Second)
+
+	slog.Debug("Current ids", "numIds", len(ids), "ids", ids)
+	slog.Debug("Active timers after all messages published",
+		"numActiveTimers", tmq.NumActiveTimers(),
+		"activeTimerKeys", tmq.ActiveTimerKeys(),
+	)
+
+	go func() {
+		if err := tmq.CancelSend(ids[0]); err != nil {
+			t.Errorf("Failed to cancel send: %+v", err)
+		}
+		return
+	}()
+
+	time.Sleep(1 * time.Second)
+	slog.Debug("Active timers after cancelling send",
+		"numActiveTimers", tmq.NumActiveTimers(),
+		"activeTimerKeys", tmq.ActiveTimerKeys(),
+	)
+	tmq.Close()
+	rcv := tmq.Listen()
+
+	if len(rcv) != 2 {
+		t.Errorf("Unexpected amount of messages received. Expected 2, received %d", len(rcv))
+	}
 }

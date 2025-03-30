@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -35,7 +36,7 @@ func Len(tmq *TimerMQ) int {
 }
 
 func (t *TimerMQ) Close() {
-	fmt.Println("Closing TimerMQ")
+	slog.Info("Closing TimerMQ")
 	close(t.mCh)
 }
 
@@ -53,6 +54,10 @@ func (tmq *TimerMQ) Ping() string {
 func (tmq *TimerMQ) Archive(index MessageIndex) error {
 	tmq.mu.Lock()
 	defer tmq.mu.Unlock()
+	return tmq.archive(index)
+}
+
+func (tmq *TimerMQ) archive(index MessageIndex) error {
 	if _, exists := tmq.dlq[index]; exists {
 		return nil
 	}
@@ -75,6 +80,21 @@ func (tmq *TimerMQ) AddTimer(index MessageIndex, timer *time.Timer) {
 	tmq.timers[index] = timer
 }
 
+func (tmq *TimerMQ) NumActiveTimers() int {
+	tmq.mu.Lock()
+	defer tmq.mu.Unlock()
+
+	return len(tmq.timers)
+}
+
+func (tmq *TimerMQ) ActiveTimerKeys() []MessageIndex {
+	keys := []int{}
+	for k := range tmq.timers {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 func (tmq *TimerMQ) Publish(data []byte, delay time.Duration) MessageIndex {
 	newIndex := tmq.store.Consume(data)
 
@@ -85,7 +105,7 @@ func (tmq *TimerMQ) Publish(data []byte, delay time.Duration) MessageIndex {
 		tmq.mu.Lock()
 		delete(tmq.timers, newIndex)
 		tmq.mu.Unlock()
-		fmt.Printf("[%s] Pushing %s to mCh\n", time.Now(), data)
+		slog.Debug("Pushing to mCh", "data", data)
 		tmq.mCh <- data
 		// close(tmq.mCh)
 	})
@@ -98,19 +118,24 @@ func (tmq *TimerMQ) Listen() [][]byte {
 	res := [][]byte{}
 	for data := range tmq.mCh {
 		res = append(res, data)
-		fmt.Printf("[%s] Reading %s from mCh\n", time.Now(), data)
+		slog.Debug("Reading from mCh", "data", data)
 	}
-	fmt.Printf("Wrote output: %s", res)
+	slog.Debug("Created output", "output", res)
 	return res
 }
 
 func (tmq *TimerMQ) CancelSend(index MessageIndex) error {
 	tmq.mu.Lock()
-	if timer, exists := tmq.timers[index]; exists {
-		timer.Stop()
-		tmq.Archive(index)
-		delete(tmq.timers, index)
-		return nil
+	defer tmq.mu.Unlock()
+
+	timer, exists := tmq.timers[index]
+	if !exists {
+		return fmt.Errorf("index %+v does not exist", index)
 	}
-	return fmt.Errorf("index %+v does not exist", index)
+
+	slog.Debug("Found timer", "index", index, "timer", timer)
+	tmq.archive(index)
+	delete(tmq.timers, index)
+	timer.Stop()
+	return nil
 }
