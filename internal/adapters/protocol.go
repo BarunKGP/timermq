@@ -11,18 +11,52 @@ import (
 )
 
 var (
-	ErrMsgParse           = errors.New("Unable to parse message")
-	ErrMsgTooShort        = errors.New("Invalid message: message missing essential parameters")
-	ErrInvalidCommand     = errors.New("Invalid command")
-	ErrInvalidCommandArgs = errors.New("Invalid args for command")
+	ErrMsgParse            = errors.New("Unable to parse message")
+	ErrMsgTooShort         = errors.New("Invalid message: message missing essential parameters")
+	ErrInvalidCommand      = errors.New("Invalid command")
+	ErrInvalidCommandArgs  = errors.New("Invalid args for command")
+	ErrUnsupportedConnType = errors.New("Unsupported connection type")
 )
 
 type Protocol struct {
-	Delim byte
+	ConnectionType ConnType
+	Delim          byte
 }
 
 func TCPProtocol() Protocol {
-	return Protocol{Delim: byte('\n')}
+	return Protocol{ConnectionType: TCP, Delim: byte('\n')}
+}
+
+func (p *Protocol) DecodeMessage(msg string) (*entities.Message, error) {
+	words := strings.Split(msg, string(' '))
+	cmd, err := values.ParseValidateCommand(words)
+	if err != nil {
+		return &entities.Message{}, err
+	}
+
+	switch p.ConnectionType {
+	case TCP:
+		switch cmd {
+		case "PING":
+			return handlePing(words)
+		case "PUSH":
+			return handlePush(words)
+		default:
+			return &entities.Message{}, ErrInvalidCommand
+		}
+	default:
+		return &entities.Message{}, ErrUnsupportedConnType
+	}
+}
+
+func (p *Protocol) EncodeMessage(msg *entities.Message) (string, error) {
+	switch p.ConnectionType {
+	case TCP:
+		return msg.ToString(), nil
+	default:
+		return "", ErrUnsupportedConnType
+
+	}
 }
 
 func handlePush(tokens []string) (*entities.Message,
@@ -76,21 +110,4 @@ func handlePing(tokens []string) (*entities.Message, error) {
 	}
 
 	return msg, nil
-}
-
-func (p *Protocol) Handle(msg string) (*entities.Message, error) {
-	words := strings.Split(msg, string(' '))
-	cmd, err := values.ParseValidateCommand(words)
-	if err != nil {
-		return &entities.Message{}, err
-	}
-
-	switch cmd {
-	case "PING":
-		return handlePing(words)
-	case "PUSH":
-		return handlePush(words)
-	default:
-		return &entities.Message{}, ErrInvalidCommand
-	}
 }

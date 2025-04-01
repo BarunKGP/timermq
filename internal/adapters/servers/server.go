@@ -2,6 +2,8 @@ package servers
 
 import (
 	"fmt"
+
+	"github.com/BarunKGP/timermq/internal/adapters"
 )
 
 type Server interface {
@@ -10,25 +12,9 @@ type Server interface {
 	Close() error
 }
 
-type ServerType int
-
-const (
-	TCP ServerType = iota
-	HTTP
-	AMQP
-)
-
-type InitOpts struct {
-	Addr      string     `json:"addr"`
-	Port      uint16     `json:"port"`
-	Protocol  ServerType `json:"protocol"`
-	KeepAlive bool       `json:"persistent,omitempty"`
-	Capacity  int        `json:"capacity"`
-}
-
-func NewServer(key ServerType, opts InitOpts) (Server, error) {
+func NewServer(key adapters.ConnType, opts adapters.InitOpts) (Server, error) {
 	switch key {
-	case TCP:
+	case adapters.TCP:
 		return NewTCPServer(opts), nil
 
 	default:

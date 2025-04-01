@@ -16,48 +16,31 @@ import (
 )
 
 type TCPServer struct {
-	Port      uint16
-	Addr      string
-	KeepAlive bool
-
-	closed   bool
-	protocol adapters.Protocol
-	tmq      *core.TimerMQ
-	idMap    map[uuid.UUID]core.MessageIndex
+	tmq   *core.TimerMQ
+	idMap map[uuid.UUID]core.MessageIndex
+	adapters.Connector
 }
 
-func NewTCPServer(opts InitOpts) *TCPServer {
+func NewTCPServer(opts adapters.InitOpts) *TCPServer {
 	return &TCPServer{
-		Port:      opts.Port,
-		Addr:      opts.Addr,
-		KeepAlive: opts.KeepAlive,
-
-		tmq:      core.NewTimerMQ(opts.Capacity),
-		idMap:    make(map[uuid.UUID]core.MessageIndex),
-		protocol: adapters.TCPProtocol(),
+		tmq:   core.NewTimerMQ(opts.Capacity),
+		idMap: make(map[uuid.UUID]core.MessageIndex),
+		Connector: adapters.Connector{
+			Port:      opts.Port,
+			Addr:      opts.Addr,
+			KeepAlive: opts.KeepAlive,
+			Protocol:  adapters.TCPProtocol(),
+		},
 	}
-}
-
-func (t *TCPServer) Persistent() *TCPServer {
-	t.KeepAlive = true
-	return t
 }
 
 func (t *TCPServer) Close() error {
-	if t.closed {
+	if t.Closed {
 		return fmt.Errorf("Server is already closed!")
 	}
-	t.closed = true
+	t.Closed = true
 	t.tmq.Close()
 	return nil
-}
-
-func formatAddr(addr string, port uint16) string {
-	return fmt.Sprintf("%s:%d", addr, port)
-}
-
-func (s *TCPServer) GetFullAddress() string {
-	return formatAddr(s.Addr, s.Port)
 }
 
 func (s *TCPServer) handleConnection(conn net.Conn) {
@@ -68,7 +51,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	for {
 		// buf := make([]byte, 2048)
 		// n, err := conn.Read(buf)
-		str, err := reader.ReadString(s.protocol.Delim)
+		str, err := reader.ReadString(s.Protocol.Delim)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				slog.Info("Connection closed")
@@ -79,7 +62,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		}
 		slog.Debug("Received data from client", "data", str)
 
-		msg, err := s.protocol.Handle(str)
+		msg, err := s.Protocol.DecodeMessage(str)
 		if err != nil {
 			slog.Error("Unable to parse message", "error", err, "message", str)
 		}

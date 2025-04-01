@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -22,10 +23,31 @@ type Message struct {
 	cmd  values.CommandMethod
 	val  string
 	args OptionalArgs
+
+	// Args
+	delay   *time.Duration
+	ttl     *time.Duration
+	durable *bool
 }
 
 func (m Message) GetId() uuid.UUID {
 	return m.id
+}
+
+func (m Message) ToString() string {
+	s := fmt.Sprintf("%s %s", m.cmd, m.val)
+
+	if m.delay != nil {
+		s = s + fmt.Sprintf(" delayMs=%d,", m.delay.Milliseconds())
+	}
+	if m.ttl != nil {
+		s = s + fmt.Sprintf(" ttlMs=%d,", m.ttl.Milliseconds())
+	}
+	if m.durable != nil {
+		s = s + fmt.Sprintf(" durable=%t,", *m.durable)
+	}
+
+	return strings.TrimRight(s, ", ")
 }
 
 func NewMessage(data string) *Message {
